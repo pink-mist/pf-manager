@@ -46,3 +46,14 @@ CREATE TABLE lists (
   updated date DEFAULT CURRENT_DATE
 );
 LISTS
+
+say "   Creating feats_with_types view";
+$pg->db->query(<<"FEATS_WITH_TYPES");
+CREATE VIEW feats_with_types AS
+  SELECT feats.id, feats.name, feats.source, array_agg(types.name ORDER BY types.name) AS types
+  FROM feats
+    LEFT JOIN feats_rel_feat_types AS rel ON feats.id = rel.feat
+      LEFT JOIN feat_types AS types ON rel.type = types.id
+  GROUP BY feats.id
+  ORDER BY feats.name;
+FEATS_WITH_TYPES;

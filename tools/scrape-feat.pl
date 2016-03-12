@@ -15,7 +15,7 @@ unless (caller()) {
 	my $opts = {};                      # rawr~~
 	GetOptions($opts, 'one|o', 'list|l', 'raw|r', 'help|h', 'make');
 
-	my $scraper = Util::Scrape::Feat->new();
+	my $scraper = Util::Scrape::Feat->new(root => $RealBin);
 	$scraper->show_usage() and exit if $opts->{help};
 
 	$scraper->make() and exit if $opts->{make};

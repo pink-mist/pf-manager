@@ -1,0 +1,5 @@
+% layout 'base';
+% title 'Feat: ' . stash 'feat';
+    <div class="feat">
+%== $self->get_feat(stash 'feat');
+    </div>

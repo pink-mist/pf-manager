@@ -10,37 +10,13 @@ package Util::Scrape::Feat {
 	use Try::Tiny;
 	use Text::Fuzzy;
 	use List::UtilsBy qw/ nsort_by uniq_by /;
+	use FindBin '$RealBin';
+	use Util::Text qw/ indent width /;
 
 	use Mojo::Pg;
 	has pg => sub { Mojo::Pg->new('postgresql:///pathfinder'); };
 	has scrapes => 0;
-
-	sub indent {
-		my ($indent, $text) = @_;
-		return $text unless $indent;
-
-		my @lines = split /\n/, $text;
-		foreach my $line (@lines) {
-			next unless length($line);
-			$line = (" " x $indent) . $line;
-		}
-		return join "\n", @lines;
-	}
-
-	sub width {
-		my ($width, $text) = @_;
-		return $text unless $width;
-
-		my @lines = split /\n/, $text;
-		my @result;
-		foreach my $line (@lines) {
-			while (length($line) > $width) {
-				push @result, substr $line, 0, $width, '';
-			}
-			push @result, $line;
-		}
-		return join "\n", @result;
-	}
+	has root => $RealBin;
 
 	sub show_usage {
 		say <<"END";
@@ -57,26 +33,56 @@ END
 	}
 
 	sub _filter {
-		my $dom = shift;
+		my $dom = _rewrite_links(shift);
 		$dom->find(':not(a,b,ul,li)')->map('strip');
 		return $dom->content();
 	}
 
+	sub _rewrite_links {
+		my $dom = shift;
+		$dom->find('a')->grep(attr => 'href')->grep(
+			sub {$_->attr('href') =~ m!^https://sites.google.com/site/pathfinderogc/feats/!}
+		)->map(
+			sub { my $name = $_->text() =~ s/\s+\([^()]+\)$//r; $_->attr(href => "/feats/$name") }
+		);
+		return $dom;
+	}
+
 	sub get_feat {
+		my ($self, $name) = @_;
+
+		my $res = $self->pg->db->query('SELECT id, name, source, description FROM feats WHERE name = ?', $name);
+		return '' unless $res->rows();
+
+		my @descs;
+		foreach my $feat (@{ $res->hashes() }) {
+			$feat->{description} //= $self->scrape_feat($feat->{source}, $feat->{name});
+			push @descs, $feat->{description};
+		}
+
+		return join "\n\n", @descs;
+	}
+
+
+	sub scrape_feat {
 		my ($self, $url, $name, $scraper) = @_;
 		my ($page) = $url =~ m!/([^/]+)$!;
 
 		# Default scraper
 		$scraper //= sub {
-			my ($url) = @_;
-			if ( $self->scrapes++ > 3 ) { warn "Scraping too many pages at once."; return ''; }
-			warn "Getting '$url'...\n";
+			my ($url, $name) = @_;
+			my $scrapes = $self->scrapes;
+			if ( $scrapes++ > 3 ) { warn "Scraping too many pages at once."; return ''; }
+			$self->scrapes($scrapes);
+			warn "Getting $name: '$url'...\n";
 			my $get = Mojo::UserAgent->new()->get($url)->res();
 			warn "Error getting page\n" and return '' if ((not defined $get->code()) or $get->code() != 200);
 			my ($div) = @{ $get->dom('div.sites-layout-name-two-column-hf.sites-layout-vbox') };
+			($div) = @{ $get->dom('div.sites-layout-name-one-column-hf.sites-layout-vbox') } if not defined $div;
 			warn $get->body() and return '' unless defined $div;
 			my @elements = @{ $div->find('i, p, h1, h2, h3, h4, h5, ul')->map(sub { _filter($_) }); };
-			my $body = join "\n\n", uniq_by { $_ } grep { /\S+/ } @elements;
+
+			my $body = join "\n\n", "<h2>$name</h2>", uniq_by { $_ } grep { /\S+/ } @elements;
 			$body;
 		};
 
@@ -89,20 +95,22 @@ END
 		if ($res->rows() and defined( my $desc = $res->hash()->{description} ))  { return $desc; }
 
 		warn "Feat $name not found in DB.\n";
+		my $id = $self->pg->db->query("SELECT id FROM feats WHERE source = ?", $url);
+		$id = $id->rows() ? $id->hash->{id} : undef;
 
 		# Not found in DB, so let's see if it's in the cache, otherwise download it
 		my $desc = try {
-			decode 'UTF-8', slurp("feats/$page");
+			decode 'UTF-8', slurp($self->root() . "/feats/$page");
 		} catch {
-			my $body = $scraper->($url);
-			spurt(encode('UTF-8', $body), "feats/$page") if length $body;
+			my $type = defined $id ? $self->get_feat_type_name($id) : '';
+			my $body = $scraper->($url, "$name$type");
+			spurt(encode('UTF-8', $body), $self->root() . "/feats/$page") if length $body;
 			$body;
 		};
 		if (length $desc) {
 			warn "Inserting description into DB.\n";
-			my $id = $self->pg->db->query("SELECT id FROM feats WHERE source = ?", $url);
-			if ($id->rows()) {
-				$self->pg->db->query("UPDATE feats SET description = ?, updated = DEFAULT WHERE id = ?", $desc, $id->hash->{id});
+			if (defined $id) {
+				$self->pg->db->query("UPDATE feats SET description = ?, updated = DEFAULT WHERE id = ?", $desc, $id);
 			} else {
 				$self->pg->db->query("INSERT INTO feats (name, description, source) VALUES (?, ?, ?);", $name, $desc, $url);
 				$self->add_types($name, $types) if defined $types;
@@ -131,10 +139,16 @@ END
 		return undef;
 	}
 
-	sub get_type {
+	sub get_type_id {
 		my ($self, $type) = @_;
 		my $res = $self->pg->db->query('SELECT id FROM feat_types WHERE name = ?;', $type);
-		if ($res->rows()) { return $res->hash()->{id}; }
+		return $res->rows() ? $res->hash()->{id} : undef;
+	}
+
+	sub get_type {
+		my ($self, $type) = @_;
+		my $id = $self->get_type_id($type);
+		return $id if defined $id;
 
 		return $self->pg->db->query('INSERT INTO feat_types (name) VALUES (?) RETURNING id;', $type)->hash()->{id};
 	}
@@ -162,12 +176,12 @@ END
 		$res->finish();
 		if (not defined $cache) {
 			$cache = try {
-				decode 'UTF-8', slurp('feats.html');
+				decode 'UTF-8', slurp($self->root() . "/feats.html");
 			} catch {
 				chomp(my $url = slurp('url.conf'));
 				warn "Getting $url...\n";
 				my $body = Mojo::UserAgent->new()->get($url)->res->body();
-				spurt(encode('UTF-8', $body), 'feats.html');
+				spurt(encode('UTF-8', $body), $self->root() . "/feats.html");
 				$body;
 			};
 			$self->pg->db->query("INSERT INTO lists (name, content) VALUES ('feats', ?);", $cache);
@@ -206,16 +220,21 @@ END
 	}
 
 	sub find {
-		my ($self, $feat) = @_;
+		my ($self, $feat, $type) = @_;
 
-		my $query = $self->pg->db->query("SELECT feats.id, feats.name, feats.source, array_agg(types.name ORDER BY types.name) AS types FROM feats LEFT JOIN feats_rel_feat_types AS rel ON feats.id = rel.feat LEFT JOIN feat_types AS types ON rel.type = types.id GROUP BY feats.id");
+		my $query;
+		if (defined $type) {
+			$query = $self->pg->db->query("SELECT * FROM feats_with_types WHERE types @> ARRAY[?];", $type);
+		} else {
+			$query = $self->pg->db->query("SELECT * FROM feats_with_types;");
+		}
 		return () unless $query->rows();
 
 		my @feats = @{ $query->hashes };
-		return @feats if not defined $feat;
+		return 1, @feats if not defined $feat;
 
 		my $fuzz = Text::Fuzzy->new($feat);
-		return nsort_by { $fuzz->distance( $_->{name} ) }
+		return 0, nsort_by { $fuzz->distance( $_->{name} ) }
 			grep {
 				$fuzz->distance( $_->{name} ) <= length($feat)/2
 					or

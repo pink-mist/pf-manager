@@ -1,0 +1,10 @@
+% layout 'base';
+% title 'Feats';
+%= form_for feats => (method => 'POST') => begin
+	%= text_field 'search'
+	%= submit_button 'Search'
+% end
+%== render_list(sub { shift->get_feat_type_list(); });
+% my $search = param 'search';
+% my $type = param 'type';
+%== render_list(sub { shift->get_feat_list($search, $type); });
