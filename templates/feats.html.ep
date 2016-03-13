@@ -4,7 +4,7 @@
 	%= text_field 'search'
 	%= submit_button 'Search'
 % end
-%== render_list(sub { shift->get_feat_type_list(); });
+%== render_list(sub { shift->get_feat_types(); });
 % my $search = param 'search';
 % my $type = param 'type';
 %== render_list(sub { shift->get_feat_list($search, $type); });

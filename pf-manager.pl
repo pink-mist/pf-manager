@@ -2,67 +2,52 @@
 use FindBin '$RealBin';
 use lib "$RealBin/tools";
 
-use Util::Scrape::Feat;
+use Util::Feat;
 use Util::Text qw/ indent /;
 use Mojolicious::Lite;
-use Mojo::IOLoop;
 use Mojo::Pg;
 
 my $pg = Mojo::Pg->new('postgresql:///pathfinder');
-my $scraper = Util::Scrape::Feat->new(root => "$RealBin/tools", pg => $pg);
+my $feat_db = Util::Feat->new(pg => $pg);
 
 get '/' => sub {
   my $c = shift;
   $c->render(template => 'index');
 };
 
-get '/feats/:feat' => sub { shift->loadfeat()->render(template => 'feat'); };
+get '/feats/:feat' => sub { shift->render(template => 'feat'); };
 any '/feats' => sub { shift->render(template => 'feats'); };
-
-helper loadfeat => sub {
-	my $c = shift;
-	$c->stash(feat => $c->param('feat'));
-	return $c;
-};
 
 helper get_feat_list => sub {
 	my ($c, $search, $type) = @_;
-	my ($sorted, @results) = $scraper->find($search, $type);
-	$c->stash(sorted => $sorted);
+
+	my ($sorted, @results) = $feat_db->find($search, $type);
+
 	my $last = '';
 	my @jumps;
 	my @feats = map {
-			my $types = join ", ", grep defined, @{ $_->{types} };
-			my $name = $_->{name};
-			$name .= " ($types)" if length $types;
-			my $url = sprintf "/feats/%s", $_->{name};
-			my @return = { name => $name, url => $url };
-
-			if ($sorted) {
-				my $cur = substr $name, 0, 1;
-				if ($cur ne $last) {
-					$last = $cur;
-					push @jumps, $cur;
-					unshift @return, { jump => $cur };
-				}
+		my @return = { name => $_->{display}, url => sprintf("/feats/%s", $_->{name}), };
+		if ($sorted) {
+			my $cur = substr $_->{name}, 0, 1;
+			if ($cur ne $last) {
+				$last = $cur;
+				push @jumps, $cur;
+				unshift @return, { jump => $cur };
 			}
-			@return;
 		}
-		@results;
+		@return; } @results;
+
 	return {jumps => \@jumps, list => \@feats};
 };
 
 helper get_feat => sub {
 	my ($c, $feat) = @_;
-	my $desc = $scraper->get_feat($feat);
-	$desc =~ s!\n\n!<p>!g;
-	$desc =~ s!\n!<br>!g;
-	$desc =~ s!(<br>|<p>)!$1\n!g;
+	my $desc = $feat_db->get_desc($feat);
 
 	return indent 6, $desc;
 };
 
-helper get_feat_type_list => sub {
+helper get_feat_types => sub {
 	my ($c) = @_;
 
 	my @types = ({ name => 'Remove Filter', url => '/feats' }, map { +{ name => $_, url => Mojo::URL->new('/feats')->query(type => $_)->to_string } }
@@ -102,9 +87,6 @@ helper render_list => sub {
 
 	return $html;
 };
-
-# Decrese scrape counter every 5 seconds
-Mojo::IOLoop->recurring(5 => sub { my $scrapes = $scraper->scrapes(); $scrapes-- if $scrapes; $scraper->scrapes($scrapes); });
 
 app->secrets(['foo']);
 app->start;
