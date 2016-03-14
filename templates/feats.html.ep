@@ -1,10 +1,15 @@
 % layout 'base';
 % title 'Feats';
-%= form_for feats => (method => 'POST') => begin
-	%= text_field 'search'
-	%= submit_button 'Search'
-% end
-%== render_list(sub { shift->get_feat_types(); });
 % my $search = param 'search';
 % my $type = param 'type';
-%== render_list(sub { shift->get_feat_list($search, $type); });
+% my $source = param 'source';
+%= form_for feats => (method => 'GET') => begin
+	%= hidden_field type => $type if defined $type
+	%= hidden_field source => $source if defined $source
+	%= text_field 'search', defined $search ? $search : ()
+	%= submit_button 'Search'
+	%= link_to 'Clear all filters' => '/feats'
+% end
+%== render_list(sub { shift->get_feat_types(); });
+%== render_list(sub { shift->get_feat_sources(); });
+%== render_list(sub { shift->get_feat_list($search, { type => $type, source => $source }); });

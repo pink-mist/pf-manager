@@ -1,21 +1,72 @@
-body { font-family: Sans-serif; }
+body { font-family: sans-serif; }
 div.jump { margin-bottom: 2em; text-align: center; }
 h3.jump { display: inline; }
 a.jump { float: right; margin-right: 3em; }
+div.collapsable {
+	max-height: 4em;
+	overflow: hidden;
+	margin-bottom: 0.4em;
+	border-bottom: 1px solid lightgray;
+}
+div.fader, div.blocker {
+	position: relative;
+	width: 100%;
+	text-align: center;
+	color: black;
+	transition: top 1s;
+}
+div.fader {
+	background-image: linear-gradient(rgba(255, 255, 255, 0), rgba(255,255,255,1));
+	top: -1.3em;
+	height: 5.3em;
+	margin-bottom: -4em;
+}
+div.blocker {
+	top: 4em;
+	height: 1.3em;
+}
+input.toggle {
+	visibility: hidden;
+	position: absolute;
+}
+label.toggle {
+	cursor: pointer;
+	display: block;
+}
+input[type=checkbox]:checked + div.collapsable { max-height: none; }
+input[type=checkbox]:checked + div.collapsable div.fader {
+	top: 0;
+	margin-bottom: 0;
+	height: 1.3em;
+	background-image: none;
+	color: inherit;
+}
+input[type=checkbox]:checked + div.collapsable div.blocker {
+	top: 0;
+	background-image: none;
+	color: inherit;
+}
 div.feat { max-width: 50em; margin-left: auto; margin-right: auto; margin-top: 5em; }
 div.list {
-	column-gap: 2em; -webkit->column-gap: 3em; -moz-column-gap: 3em;
-	column-rule: 1px solid lightgray; -webkit-column-rule: 1px solid lightgray; -moz-column-rule: 1px dashed lightgray;
+	column-gap: 2em; -webkit->column-gap: 2em; -moz-column-gap: 2em;
+	column-rule: 1px dashed lightgray; -webkit-column-rule: 1px dashed lightgray; -moz-column-rule: 1px dashed lightgray;
 }
-@media all and (max-width: 40em) {
+div.list > ul {
+	margin-top: 0;
+}
+@media screen and (max-width: 40em) {
 	div.list { column-count: 1; -webkit-column-count: 1; -moz-column-count: 1; }
 }
-@media all and (min-width: 40em) and (max-width: 65em) {
+@media screen and (min-width: 40em) and (max-width: 65em) {
 	div.list { column-count: 2; -webkit-column-count: 2; -moz-column-count: 2; }
 }
-@media all and (min-width: 65em) and (max-width: 80em) {
+@media screen and (min-width: 65em) and (max-width: 80em) {
 	div.list { column-count: 3; -webkit-column-count: 3; -moz-column-count: 3; }
 }
-@media all and (min-width: 80em) {
+@media screen and (min-width: 80em) {
 	div.list { column-count: 4; -webkit-column-count: 4; -moz-column-count: 4; }
+}
+@media print {
+	body { font-size: 8pt; column-count: 2; -webkit-column-count: 2; -moz-column-count: 2; }
+	div.feat { max-width: none; }
 }

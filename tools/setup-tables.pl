@@ -101,10 +101,19 @@ CREATE TABLE feats_rel_feats (
 );
 FEATS_REL_FEATS
 
+say "  Creating phrases table";
+$pg->db->query(<<"PHRASES");
+CREATE TABLE phrases (
+  id serial PRIMARY KEY,
+  phrase text UNIQUE NOT NULL,
+  link text
+);
+PHRASES
+
 say "  Creating feats_with_types view";
 $pg->db->query(<<"FEATS_WITH_TYPES");
 CREATE VIEW feats_with_types AS (
-  SELECT feats.id, feats.name, array_agg(types.name ORDER BY types.name) AS types
+  SELECT feats.id, feats.name, feats.source, array_agg(types.name ORDER BY types.name) AS types
   FROM feats
     LEFT JOIN feats_rel_feat_types AS rel ON feats.id = rel.feat
       LEFT JOIN feat_types AS types ON rel.type = types.id
