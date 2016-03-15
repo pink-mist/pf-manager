@@ -11,6 +11,7 @@ use Mojo::Pg;
 use Scalar::Util 'refaddr';
 
 plugin CHI => { default => { driver => 'Memory', global => 1, max_size => '20m' } };
+plugin 'Config';
 
 my $pg = Mojo::Pg->new('postgresql:///pathfinder');
 my $feat_db = Util::Feat->new(pg => $pg);
@@ -134,7 +135,7 @@ helper render_list => sub {
 	return $html;
 };
 
-app->secrets(['foo']);
+app->secrets(app->config->{secrets});
 app->start;
 __DATA__
 
