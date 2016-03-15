@@ -2,6 +2,8 @@
 use FindBin '$RealBin';
 use lib "$RealBin/tools";
 
+use lib 'lib';
+
 use Util::Feat;
 use Util::Text qw/ indent /;
 use Mojolicious::Lite;

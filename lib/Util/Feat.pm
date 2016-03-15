@@ -39,6 +39,14 @@ package Util::Feat {
 		push @lines, $self->_parse('<b>Note:</b> ', $feat->{note});
 		push @lines, $self->_parse('<b>Suggested Traits:</b> ', $feat->{suggested_traits});
 
+		my @dependent_feats = @{ $self->pg->db->query('SELECT * FROM feats_with_types, feats_rel_feats AS rel WHERE id = rel.feat AND rel.prerequisite_feat = ? ORDER BY name', $feat->{id})->hashes() };
+		if (@dependent_feats) {
+			push @lines, sprintf '<div class="dependents list"><p><b>Feats depending on this:</b><ul>%s</ul></p></div>',
+				join "\n",
+				map { sprintf '<li><a href="/feats/%s">%1$s (%s)</a>', $_->{name}, join ", ", @{ $_->{types} } }
+				@dependent_feats;
+		}
+
 		return sprintf '<div class="feat">%s</div>', join "\n", @lines;
 	}
 
