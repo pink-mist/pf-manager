@@ -21,18 +21,9 @@ div.fader {
 	height: 5.3em;
 	margin-bottom: -4em;
 }
-div.blocker {
-	top: 4em;
-	height: 1.3em;
-}
-input.toggle {
-	visibility: hidden;
-	position: absolute;
-}
-label.toggle {
-	cursor: pointer;
-	display: block;
-}
+div.blocker { top: 4em; height: 1.3em; }
+input.toggle { visibility: hidden; position: absolute; }
+label.toggle { cursor: pointer; display: block; }
 input[type=checkbox]:checked + div.collapsable { max-height: none; }
 input[type=checkbox]:checked + div.collapsable div.fader {
 	top: 0;
