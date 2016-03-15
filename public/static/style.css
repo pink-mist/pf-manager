@@ -45,6 +45,7 @@ div.list {
 div.list > ul {
 	margin-top: 0;
 }
+div.feat > div.list { column-count: 2; -webkit-column-count: 2; -moz-column-count: 2; }
 @media screen and (max-width: 40em) {
 	div.list { column-count: 1; -webkit-column-count: 1; -moz-column-count: 1; }
 }
@@ -60,4 +61,5 @@ div.list > ul {
 @media print {
 	body { font-size: 8pt; column-count: 2; -webkit-column-count: 2; -moz-column-count: 2; }
 	div.feat { max-width: none; }
+	div.dependents { display: none; }
 }
