@@ -33,6 +33,7 @@ while (defined(my $row = $csv->fetchrow_hash())) {
 		language_dependent lawful light mind_affecting pain poison shadow sonic water
 
 		sor wiz cleric druid ranger bard paladin alchemist summoner witch inquisitor oracle antipaladin magus adept bloodrager shaman psychic medium mesmerist occultist spiritualist skald
+
 		casting_time components costly_components range area effect targets duration dismissible shapeable saving_throw spell_resistence material_costs
 		verbal somatic material focus divine_focus deity domain bloodline patron
 		description description_formated short_description

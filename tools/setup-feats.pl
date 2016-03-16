@@ -14,6 +14,8 @@ my $csv_file = shift;
 say " Connecting to DB $db_name...";
 my $pg = Mojo::Pg->new("postgresql:///$db_name");
 
+say " Setting up feats...";
+
 say "  Creating feat_types table";
 $pg->db->query(<<"FEAT_TYPES");
 CREATE TABLE feat_types (
@@ -168,7 +170,7 @@ while (defined (my $row = $csv->fetchrow_hash())) {
 	add_races($id, $row);
 }
 
-say "  Done.";
+say " Done.";
 
 sub add_feat {
 	my $row = shift;
@@ -252,46 +254,4 @@ sub get_id {
 	$pg->db->query("INSERT INTO $table (name) VALUES (?) RETURNING id;", $name)->hash()->{id};
 }
 
-sub add_prereq_feats {
-	my ($row) = @_;
-	my $feats = $row->{prerequisite_feats};
-	return unless defined $feats;
-
-	my $current = get_feat_id($row);
-
-	my @feats = split / ?(?:,|\|) ?/, $feats;
-	foreach my $feat (@feats) {
-		$feat =~ s/ \(.*$//;
-		my @ids = grep { $_ != $current } map { $_->{id} } @{ $pg->db->query('SELECT id FROM feats WHERE name = ?', $feat)->hashes() };
-		if (@ids == 1) {
-			$pg->db->query('INSERT INTO feats_rel_feats (feat, prerequisite_feat) VALUES (?, ?);', $current, $ids[0]);
-			next;
-		} else {
-			warn "Could not disambiguate prerequisite feat $feat (" . join(", ", @ids) . ") for " . $row->{name} . " ($current)\n";
-		}
-	}
-}
-
-sub get_feat_id {
-	my ($row) = @_;
-
-	my $res = $pg->db->query('SELECT id, types FROM feats_with_types WHERE name = ?', $row->{name});
-	return $res->hash()->{id} if $res->rows() == 1;
-	return undef if not $res->rows();
-
-	warn "Duplicate feat name: " . $row->{name} . "\n";
-	my @types = get_types_from_row($row);
-	my @ids;
-	FEAT: foreach my $feat (@{ $res->hashes() }) {
-		my @feat_types = grep { defined } @{ $feat->{types} };
-		next if @feat_types != @types;
-		foreach my $type (@types) {
-			next FEAT if not grep { $_ eq $type } @feat_types;
-		}
-
-		push @ids, $feat->{id};
-	}
-	return $ids[0] if @ids == 1;
-
-	die "Could not disambiguate " . $row->{name} . " based on types. Possible ids: " . join(", ", @ids) . "\n";
-}
+system('./add-prereqs.pl', $db_name, $csv_file);
