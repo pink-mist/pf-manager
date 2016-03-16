@@ -1,6 +1,7 @@
 package Util::Feat {
 
 	use Mojo::Base -base;
+	use feature 'fc';
 
 	use List::UtilsBy qw/ nsort_by /;
 	use Mojo::Pg;
@@ -105,12 +106,13 @@ package Util::Feat {
 		my @feats = map { +{ name => $_->{name}, display => sprintf("%s (%s)", $_->{name}, join ", ", @{ $_->{types} } ), } } @{ $q->hashes() };
 		return 1, @feats if not defined $feat;
 
+		$feat = fc($feat);
 		my $fuzz = Text::Fuzzy->new($feat);
-		return 0, nsort_by { $fuzz->distance( $_->{name} ) }
+		return 0, nsort_by { $fuzz->distance( fc($_->{name}) ) }
 			grep {
-				$fuzz->distance( $_->{name} ) <= length($feat)/2
+				$fuzz->distance( fc($_->{name}) ) <= length($feat)/2
 					or
-				index($_->{name}, $feat) != -1
+				index(fc($_->{name}), $feat) != -1
 			}
 			@feats;
 	}
