@@ -45,6 +45,7 @@ div.list {
 div.list > ul {
 	margin-top: 0;
 }
+div.copyright { color: gray; font-size: 0.5em; text-align: center; padding-left: 25%; padding-right: 25%; }
 div.feat > div.list { column-count: 2; -webkit-column-count: 2; -moz-column-count: 2; }
 @media screen and (max-width: 40em) {
 	div.list { column-count: 1; -webkit-column-count: 1; -moz-column-count: 1; }
@@ -61,5 +62,5 @@ div.feat > div.list { column-count: 2; -webkit-column-count: 2; -moz-column-coun
 @media print {
 	body { font-size: 8pt; column-count: 2; -webkit-column-count: 2; -moz-column-count: 2; }
 	div.feat, div.spell { max-width: none; }
-	div.dependents { display: none; }
+	div.copyright, div.dependents { display: none; }
 }
