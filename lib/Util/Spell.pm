@@ -94,29 +94,53 @@ package Util::Spell {
 			/;
 	}
 
+	sub schools {
+		return qw/ abjuration conjuration divination enchantment evocation illusion necromancy transmutation /;
+	}
+
+	sub create_query {
+		my ($self, $filter) = @_;
+		my ($class, $source, $descriptor, $school) = @{ $filter }{qw/ class source descriptor school /};
+
+		my @fields = qw/ name short_description /;
+		my @tables = qw/ spells /;
+		my @wheres;
+		my @binds;
+		my $order = 'name';
+
+		# class filter
+		push @fields, 'level' if defined $class;
+		push @tables, 'spells_rel_class' if defined $class;
+		push @wheres, 'id = spell AND class = ?' if defined $class;
+		$order = "level, $order" if defined $class;
+		push @binds, $class if defined $class;
+
+		# descriptor filter
+		push @wheres, "$descriptor = 't'" if defined $descriptor;
+
+		# source filter
+		push @wheres, 'source = ?' if defined $source;
+		push @binds, $source if defined $source;
+
+		# school filter
+		push @wheres, 'school = ?' if defined $school;
+		push @binds, $school if defined $school;
+
+		my $fields = join ", ", @fields;
+		my $tables = join ", ", @tables;
+		my $wheres = sprintf "WHERE %s", join " AND ", @wheres if @wheres;
+		my $query = sprintf 'SELECT %s FROM %s %s ORDER BY %s', $fields, $tables, $wheres, $order;
+
+		#warn sprintf qq'Query: "%s"\nBinds: %s\n', $query, join ", ", map { "'$_'" } @binds;
+		return $self->pg->db->query($query, @binds);
+	}
+
 	sub find {
 		my ($self, $spell, $filter) = @_;
 
-		my $q;
 		my ($class, $source, $descriptor) = @{ $filter }{'class', 'source', 'descriptor'};
 		return () if defined $descriptor and not in($descriptor, descriptors());
-		if (defined $descriptor and defined $source and defined $class) {
-			$q = $self->pg->db->query("SELECT level, name, short_description FROM spells, spells_rel_class WHERE id = spell AND class = ? AND source = ? AND $descriptor = 't' ORDER BY level, name", $class, $source);
-		} elsif (defined $descriptor and defined $class) {
-			$q = $self->pg->db->query("SELECT level, name, short_description FROM spells, spells_rel_class WHERE id = spell AND class = ? AND $descriptor = 't' ORDER BY level, name", $class);
-		} elsif (defined $descriptor and defined $source) {
-			$q = $self->pg->db->query("SELECT name, short_description FROM spells WHERE source = ? AND $descriptor = 't' ORDER BY name", $source);
-		} elsif (defined $descriptor) {
-			$q = $self->pg->db->query("SELECT name, short_description FROM spells WHERE $descriptor = 't' ORDER BY name");
-		} elsif (defined $class and defined $source) {
-			$q = $self->pg->db->query('SELECT level, name, short_description FROM spells, spells_rel_class WHERE id = spell AND class = ? AND source = ? ORDER BY level, name', $class, $source);
-		} elsif (defined $class) {
-			$q = $self->pg->db->query('SELECT level, name, short_description FROM spells, spells_rel_class WHERE id = spell AND class = ? ORDER BY level, name', $class);
-		} elsif (defined $source) {
-			$q = $self->pg->db->query('SELECT name, short_description FROM spells WHERE source = ? ORDER BY name', $source);
-		} else {
-			$q = $self->pg->db->query('SELECT name, short_description FROM spells ORDER BY name');
-		}
+		my $q = $self->create_query($filter);
 
 		my @spells = @{ $q->hashes() };
 		return 1, @spells if not defined $spell;

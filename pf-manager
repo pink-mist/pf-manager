@@ -151,6 +151,15 @@ helper get_spell_descriptors => sub {
 	return { header => 'Filter by Descriptor', collapsable => 'descriptor', jumps => [], list => \@descriptors };
 };
 
+helper get_spell_schools => sub {
+	my ($c) = @_;
+
+	my @schools = ({name => 'Remove Filter', url => $c->url_with->query([school => undef])},
+		map { +{ name => "\u$_", url => $c->url_with->query([school => $_])->to_string } }
+		$spell_db->schools());
+	return { header => 'Filter by School', collapsable => 'school', jumps => [], list => \@schools };
+};
+
 helper render_list => sub {
 	my $c = shift;
 	my $cb = shift;
