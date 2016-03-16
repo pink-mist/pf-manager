@@ -142,6 +142,15 @@ helper get_spell_sources => sub {
 	return { header => 'Filter by Source', collapsable => 'source', jumps => [], list => \@sources };
 };
 
+helper get_spell_descriptors => sub {
+	my ($c) = @_;
+
+	my @descriptors = ({ name => 'Remove Filter', url => $c->url_with->query([descriptor => undef]) },
+		map { +{ name => "\u$_" =~ s/_(.)/-\u$1/r, url => $c->url_with->query([descriptor => $_])->to_string } }
+		$spell_db->descriptors());
+	return { header => 'Filter by Descriptor', collapsable => 'descriptor', jumps => [], list => \@descriptors };
+};
+
 helper render_list => sub {
 	my $c = shift;
 	my $cb = shift;

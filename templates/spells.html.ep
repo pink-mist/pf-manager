@@ -3,13 +3,16 @@
 % my $search = param 'search';
 % my $class = param 'class';
 % my $source = param 'source';
+% my $descriptor = param 'descriptor';
 %= form_for spells => (method => 'GET') => begin
 	%= hidden_field class => $class if defined $class
 	%= hidden_field source => $source if defined $source
+	%= hidden_field descriptor => $descriptor if defined $descriptor
 	%= text_field 'search', defined $search ? $search : ()
 	%= submit_button 'Search'
 	%= link_to 'Clear all filters' => '/spells'
 % end
 %== render_list(sub { shift->get_spell_classes(); });
 %== render_list(sub { shift->get_spell_sources(); });
-%== render_list(sub { shift->get_spell_list($search, { class => $class, source => $source }); });
+%== render_list(sub { shift->get_spell_descriptors(); });
+%== render_list(sub { shift->get_spell_list($search, { class => $class, source => $source, descriptor => $descriptor }); });

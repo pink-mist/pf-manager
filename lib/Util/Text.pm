@@ -5,7 +5,7 @@ package Util::Text {
 
 	use Exporter qw/ import /;
 
-	our @EXPORT_OK = qw/ indent width /;
+	our @EXPORT_OK = qw/ indent width in /;
 
 	sub indent {
 		my ($indent, $text) = @_;
@@ -32,6 +32,12 @@ package Util::Text {
 			push @result, $line;
 		}
 		return join "\n", @result;
+	}
+
+	sub in {
+		my ($first, @rest) = @_;
+		foreach my $rest (@rest) { return 1 if $first eq $rest; }
+		return 0;
 	}
 };
 

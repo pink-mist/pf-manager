@@ -8,6 +8,7 @@ package Util::Spell {
 	use Mojo::Util 'html_unescape';
 	use Text::Fuzzy;
 	use Text::Markdown qw/ markdown /;
+	use Util::Text qw/ in /;
 
 	has pg => sub { Mojo::Pg->new('postgresql:///pathfinder'); };
 
@@ -84,12 +85,30 @@ package Util::Spell {
 		return $text
 	}
 
+	sub descriptors {
+		return qw/
+			acid air chaotic cold curse darkness death disease
+			earth electricity emotion evil fear fire force good
+			language_dependent lawful light mind_affecting pain
+			poison shadow sonic water
+			/;
+	}
+
 	sub find {
 		my ($self, $spell, $filter) = @_;
 
 		my $q;
-		my ($class, $source) = @{ $filter }{'class', 'source'};
-		if (defined $class and defined $source) {
+		my ($class, $source, $descriptor) = @{ $filter }{'class', 'source', 'descriptor'};
+		return () if defined $descriptor and not in($descriptor, descriptors());
+		if (defined $descriptor and defined $source and defined $class) {
+			$q = $self->pg->db->query("SELECT level, name, short_description FROM spells, spells_rel_class WHERE id = spell AND class = ? AND source = ? AND $descriptor = 't' ORDER BY level, name", $class, $source);
+		} elsif (defined $descriptor and defined $class) {
+			$q = $self->pg->db->query("SELECT level, name, short_description FROM spells, spells_rel_class WHERE id = spell AND class = ? AND $descriptor = 't' ORDER BY level, name", $class);
+		} elsif (defined $descriptor and defined $source) {
+			$q = $self->pg->db->query("SELECT name, short_description FROM spells WHERE source = ? AND $descriptor = 't' ORDER BY name", $source);
+		} elsif (defined $descriptor) {
+			$q = $self->pg->db->query("SELECT name, short_description FROM spells WHERE $descriptor = 't' ORDER BY name");
+		} elsif (defined $class and defined $source) {
 			$q = $self->pg->db->query('SELECT level, name, short_description FROM spells, spells_rel_class WHERE id = spell AND class = ? AND source = ? ORDER BY level, name', $class, $source);
 		} elsif (defined $class) {
 			$q = $self->pg->db->query('SELECT level, name, short_description FROM spells, spells_rel_class WHERE id = spell AND class = ? ORDER BY level, name', $class);
