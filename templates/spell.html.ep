@@ -1,0 +1,4 @@
+% layout 'base';
+% title 'Spell: ' . stash 'spell';
+
+%== $self->get_spell(stash 'spell');

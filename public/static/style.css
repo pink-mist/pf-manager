@@ -37,7 +37,7 @@ input[type=checkbox]:checked + div.collapsable div.blocker {
 	background-image: none;
 	color: inherit;
 }
-div.feat { max-width: 50em; margin-left: auto; margin-right: auto; margin-top: 5em; }
+div.feat, div.spell { max-width: 50em; margin-left: auto; margin-right: auto; margin-top: 5em; }
 div.list {
 	column-gap: 2em; -webkit->column-gap: 2em; -moz-column-gap: 2em;
 	column-rule: 1px dashed lightgray; -webkit-column-rule: 1px dashed lightgray; -moz-column-rule: 1px dashed lightgray;
@@ -60,6 +60,6 @@ div.feat > div.list { column-count: 2; -webkit-column-count: 2; -moz-column-coun
 }
 @media print {
 	body { font-size: 8pt; column-count: 2; -webkit-column-count: 2; -moz-column-count: 2; }
-	div.feat { max-width: none; }
+	div.feat, div.spell { max-width: none; }
 	div.dependents { display: none; }
 }
