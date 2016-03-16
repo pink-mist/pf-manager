@@ -33,7 +33,7 @@ CREATE TABLE spells (
   death boolean DEFAULT 'f',
   disease boolean DEFAULT 'f',
   earth boolean DEFAULT 'f',
-  electircity boolean DEFAULT 'f',
+  electricity boolean DEFAULT 'f',
   emotion boolean DEFAULT 'f',
   evil boolean DEFAULT 'f',
   fear boolean DEFAULT 'f',
@@ -60,7 +60,7 @@ CREATE TABLE spells (
   dismissible boolean DEFAULT 'f',
   shapeable boolean DEFAULT 'f',
   saving_throw text,
-  spell_resistence text,
+  spell_resistance text,
   material_costs text,
   verbal boolean DEFAULT 'f',
   somatic boolean DEFAULT 'f',
@@ -72,7 +72,7 @@ CREATE TABLE spells (
   bloodline text,
   patron text,
   description text NOT NULL,
-  short_description text NOT NULL,
+  short_description text,
   mythic boolean DEFAULT 'f',
   mythic_text text,
   augmented text,
@@ -99,6 +99,7 @@ $csv->read_header();
 my $count = 0;
 while (defined (my $row = $csv->fetchrow_hash())) {
 	if ($count++ % 50 == 0) { print $count % 250 ? "." : " "; }
+	$row->{spell_resistance} = delete $row->{spell_resistence};
 	my $id = add_spell($row);
 	add_spell_class($id, $row);
 }
@@ -108,7 +109,7 @@ say " Done.";
 sub add_spell {
 	my $row = shift;
 	foreach my $val (values %$row) { $val = undef if defined $val and $val eq 'NULL'; }
-	my @fields = qw/ name school subschool descriptor acid air chaotic cold curse darkness death disease earth electricity emotion evil fear fire force good language_dependent lawful light mind_affecting pain poison shadow sonic water casting_time components costly_components ranger area effect targets duration dismissible shapeable saving_throw spell_resistance material_costs verbal somatic material focus divine_focus deity domain bloodline patron description short_description mythic mythic_text augmented SLA_Level source /;
+	my @fields = qw/ name school subschool descriptor acid air chaotic cold curse darkness death disease earth electricity emotion evil fear fire force good language_dependent lawful light mind_affecting pain poison shadow sonic water casting_time components costly_components range area effect targets duration dismissible shapeable saving_throw spell_resistance material_costs verbal somatic material focus divine_focus deity domain bloodline patron description short_description mythic mythic_text augmented SLA_Level source /;
 	my $fields = join ", ", @fields;
 	my $values = join ", ", ('?')x@fields;
 	my $query = <<"ADD_SPELL";
