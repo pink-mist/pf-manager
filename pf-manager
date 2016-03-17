@@ -23,9 +23,9 @@ get '/' => sub {
   $c->render(template => 'index');
 };
 
-get '/feats/:feat' => sub { shift->render(template => 'feat'); };
+get '/feats/*feat' => sub { shift->render(template => 'feat'); };
 any '/feats' => sub { shift->check_cache(feats => sub { shift->render_to_string(template => 'feats'); }); };
-get '/spells/:spell' => sub { shift->render(template => 'spell'); };
+get '/spells/*spell' => sub { shift->render(template => 'spell'); };
 any '/spells' => sub { shift->check_cache(spells => sub { shift->render_to_string(template => 'spells'); }); };
 
 helper check_cache => sub {
