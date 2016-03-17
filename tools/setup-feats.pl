@@ -103,15 +103,6 @@ CREATE TABLE feats_rel_feats (
 );
 FEATS_REL_FEATS
 
-say "  Creating phrases table";
-$pg->db->query(<<"PHRASES");
-CREATE TABLE phrases (
-  id serial PRIMARY KEY,
-  phrase text UNIQUE NOT NULL,
-  link text
-);
-PHRASES
-
 say "  Creating feats_with_types view";
 $pg->db->query(<<"FEATS_WITH_TYPES");
 CREATE VIEW feats_with_types AS (

@@ -9,4 +9,6 @@ DIR=$( dirname $0 )
 $DIR/setup-feats.pl $DB feats-${1}.csv
 $DIR/setup-spells.pl $DB spells-${1}.csv
 
+echo "  Creating phrases table"
+psql -f phrases.sql pathfinder
 echo "Done."
