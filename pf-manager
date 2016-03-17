@@ -169,8 +169,9 @@ helper render_list => sub {
 	my $collapsable = $spec->{collapsable};
 	my $header = $spec->{header};
 	my @jumps = @{ $spec->{jumps} };
+	my $single_jump = @jumps == 1;
 	my $jump_html = '';
-	if (@jumps) {
+	if (@jumps > 1) {
 		$jump_html .= '<a name="jump">Jump to</a>: ' . join " | ", map { sprintf '<a href="#%1$s">%1$s</a>', $_; } @jumps;
 	}
 
@@ -178,6 +179,7 @@ helper render_list => sub {
 	my $list_html = '';
 	foreach my $item (@list) {
 		if (exists $item->{jump}) {
+			next if $single_jump;
 			if (length $list_html) { $list_html .= '</ul>'; }
 			$list_html .= sprintf '<h3 class="jump"><a name="%1$s">%1$s</a></h3><a href="#jump" class="jump">^Top</a>', $item->{jump};
 			$list_html .= '<ul>';
