@@ -5,18 +5,24 @@ use lib "$RealBin/tools";
 use lib 'lib';
 
 use Util::Feat;
+use Util::Phrase;
 use Util::Spell;
-use Util::Text qw/ indent /;
-use Mojolicious::Lite;
+use Util::Text qw/ indent def_push def_join /;
+use Mojo::DOM;
 use Mojo::Pg;
+use Mojo::Util qw/ html_unescape dumper /;
+use Mojolicious::Lite;
 use Scalar::Util 'refaddr';
+use Text::Markdown qw/ markdown /;
 
 plugin CHI => { default => { driver => 'Memory', global => 1, max_size => '20m' } };
 plugin 'Config';
+plugin 'TagHelpers';
 
 my $pg = Mojo::Pg->new('postgresql:///pathfinder');
 my $feat_db = Util::Feat->new(pg => $pg);
 my $spell_db = Util::Spell->new(pg => $pg);
+my $phrase_db = Util::Phrase->new(pg => $pg);
 
 get '/' => sub {
   my $c = shift;
@@ -27,6 +33,7 @@ get '/feats/*feat' => sub { shift->render(template => 'feat'); };
 any '/feats' => sub { shift->check_cache(feats => sub { shift->render_to_string(template => 'feats'); }); };
 get '/spells/*spell' => sub { shift->render(template => 'spell'); };
 any '/spells' => sub { shift->check_cache(spells => sub { shift->render_to_string(template => 'spells'); }); };
+get '/edit/spell/:id' => sub { shift->render(template => 'edit-spell'); };
 
 helper check_cache => sub {
 	my ($c, $key, $cb) = @_;
@@ -67,7 +74,7 @@ helper get_feat_list => sub {
 	return {jumps => \@jumps, list => \@feats};
 };
 
-helper get_spell_list => sub {
+helper list_spells => sub {
 	my ($c, $search, $filter) = @_;
 
 	my ($sorted, @results) = $spell_db->find($search, $filter);
@@ -103,11 +110,142 @@ helper get_feat => sub {
 	return indent 6, $desc;
 };
 
-helper get_spell => sub {
-	my ($c, $spell) = @_;
-	my $desc = $spell_db->get_desc($spell);
+helper render_feat => sub {
+	my ($c, $name) = @_;
 
-	return indent 6, $desc;
+	return join '<p>', map { $c->render_feat_desc($_) } $feat_db->get_feats(split /\|/, $name);
+};
+
+helper render_spell => sub {
+	my ($c, $name) = @_;
+
+	return join '<p>', map { $c->render_spell_desc($_) } $spell_db->get_spells($name);
+};
+
+helper render_spell_desc => sub {
+	my ($c, $spell) = @_;
+
+	# Source
+	my @lines = sprintf '<p><i>Source: %s</i></p>', $spell->{source};
+	def_push @lines, $spell->{short_description};
+
+	# Name
+	my @descriptors =
+		map { s/(?:^|[^a-z])\K([a-z])/\u$1/g; s/_/-/gr; }
+		grep { $_ eq 'mythic' ? !defined $spell->{mythic_text} : 1 }
+		grep { $spell->{$_} }
+		$spell_db->descriptors();
+	my $descriptors = @descriptors ? sprintf(" [%s]", join ", ", @descriptors) : '';
+	push @lines, sprintf '<h2>%s%s</h2>', $spell->{name}, $descriptors;
+
+	# School
+	my @school = $spell->{school};
+	def_push @school, ' (', $spell->{subschool}, ')';
+	push @lines, join '', '<b>School:</b> ', @school;
+
+	# Classes
+	push @lines, join " / ", map { sprintf "%s %s", "\u$_->{class}", $_->{level} } $spell_db->get_classes($spell->{id});
+
+	# Casting block
+	my @casting;
+	def_push @casting, def_join ' ', '<b>Casting time:</b>', $spell->{casting_time};
+	def_push @casting, def_join ' ', '<b>Components:</b>', $spell->{components};
+	def_push @casting, def_join ' ', '<b>Material costs:</b>', $spell->{material_costs};
+	def_push @casting, def_join ' ', '<b>Range:</b>', $spell->{range};
+	def_push @casting, def_join ' ', '<b>Area:</b>', $spell->{area};
+	def_push @casting, def_join ' ', '<b>Effect:</b>', $spell->{effect};
+	def_push @casting, def_join ' ', '<b>Targets:</b>', $spell->{targets};
+	def_push @casting, def_join ' ', '<b>Duration:</b>', $spell->{duration};
+	def_push @casting, def_join ' ', '<b>Saving Throw:</b>', $spell->{saving_throw};
+	def_push @casting, def_join ' ', '<b>Spell Resistance:</b>', $spell->{spell_resistance};
+	def_push @casting, def_join ' ', '<b>Deity:</b>', $spell->{deity};
+	def_push @casting, def_join ' ', '<b>Domain:</b>', $spell->{domain};
+	def_push @casting, def_join ' ', '<b>Bloodline:</b>', $spell->{bloodline};
+	def_push @casting, def_join ' ', '<b>Patron:</b>', $spell->{patron};
+	push @lines, join "<br>\n", @casting, '' if @casting;
+
+	# Description
+	def_push @lines, def_join ' ', '<b>Description:</b>', $c->md($spell->{description});
+
+	# Mythic block
+	my @mythic;
+	def_push @mythic, def_join ' ', '<b>Mythic:</b>', $spell->{mythic_text};
+	push @mythic, sprintf('<b>%s:</b> %s', split /: ?/,  $spell->{augmented}, 2) if defined $spell->{augmented};
+	push @lines, join '<br>\n', @mythic if @mythic;
+
+	return indent 6, sprintf '<div class="spell"><div class="editlink"><a href="/edit/spell/%s">Edit</a></div>%s</div>',
+		$spell->{id}, join "\n", map { @{ Mojo::DOM->new($_)->child_nodes } != 1 ? "<p>$_</p>" : $_ } @lines;
+};
+
+helper render_feat_desc => sub {
+	my ($c, $feat) = @_;
+
+	# Source
+	my @lines = sprintf '<p><i>Source: %s</i></p>', $feat->{source};
+
+	# Name
+	my @types = $feat_db->get_types($feat->{id});
+	my $types = @types ? sprintf(' (%s)', join ', ', @types) : '';
+	push @lines, sprintf '<h2>%s%s</h2>', $feat->{name}, $types;
+
+	# Description
+	push @lines, $feat->{description};
+
+	# Details
+	def_push @lines, def_join ' ', '<b>Prerequisites:</b>', $c->feat_prereq_linkify($feat);
+	def_push @lines, def_join ' ', '<b>Benefit:</b>', $c->md($feat->{benefit});
+	def_push @lines, def_join ' ', '<b>Normal:</b>', $c->md($feat->{normal});
+	def_push @lines, def_join ' ', '<b>Special:</b>', $c->md($feat->{special});
+	def_push @lines, def_join ' ', '<b>Goal:</b>', $c->md($feat->{goal});
+	def_push @lines, def_join ' ', '<b>Completion Benefit:</b>', $c->md($feat->{completion_benefit});
+	def_push @lines, def_join ' ', '<b>Note:</b>', $c->md($feat->{note});
+	def_push @lines, def_join ' ', '<b>Suggested Traits:</b>', $feat->{suggested_traits};
+
+	# Dependent feats
+	my @dependents = $feat_db->list_dependents($feat->{id});
+	if (@dependents) {
+		push @lines, sprintf '<div class="dependents list"><p><b>Feats depending on this:</b><ul>%s</ul></p></div>',
+			join "\n",
+			map { sprintf '<li><a href="/feats/%s">%1$s (%s)</a>', $_->{name}, join ", ", @{ $_->{types} } }
+			@dependents;
+	}
+
+	return sprintf '<div class="feat">%s</div>', join "\n",  map { @{ Mojo::DOM->new($_)->child_nodes } != 1 ? "<p>$_</p>" : $_ } @lines;
+};
+
+helper md => sub {
+	my ($c, $text) = @_;
+	return undef if not defined $text;
+
+	foreach my $phrase ($phrase_db->analyse($text)) {
+		my ($phr, $lnk) = @{ $phrase }{'phrase', 'link'};
+
+		my $dom = Mojo::DOM->new($text);
+		foreach my $node (@{ $dom->child_nodes }) {
+			next if $node->type ne 'text';
+
+			my $txt = html_unescape $node->to_string();
+			$txt =~ s!\b(\Q$phr\E)\b!<a href="$lnk">$1</a>!gi;
+			$node->replace($txt);
+		}
+		$text = html_unescape $dom->content();
+	}
+
+	return Mojo::DOM->new(markdown( $text , { empty_element_suffix => '>', }))->child_nodes->first->content();
+};
+
+helper feat_prereq_linkify => sub {
+	my ($c, $feat) = @_;
+	return undef if not defined $feat->{prerequisites};
+
+	my @prereqs = $feat_db->list_prereqs($feat->{id});
+
+	my $prereqs = $feat->{prerequisites};
+	foreach my $prereq (@prereqs) {
+		$prereqs =~ s!(?:^|, | or )\K(\Q$prereq\E)!<a href="/feats/$prereq">$1</a>!ig;
+	}
+
+	return $prereqs;
 };
 
 helper get_feat_types => sub {
@@ -126,7 +264,7 @@ helper get_feat_sources => sub {
 	return { header => 'Filter by Source', collapsable => 'source', jumps => [], list => \@sources };
 };
 
-helper get_spell_classes => sub {
+helper list_spell_classes => sub {
 	my ($c) = @_;
 
 	my @classes = ({ name => 'Remove Filter', url => $c->url_with->query([class => undef]) }, map { +{ name => "\u$_", url => $c->url_with->query([class => $_])->to_string} }
@@ -134,7 +272,7 @@ helper get_spell_classes => sub {
 	return { header => 'Filter by Class', collapsable => 'class', jumps => [], list => \@classes };
 };
 
-helper get_spell_sources => sub {
+helper list_spell_sources => sub {
 	my ($c) = @_;
 
 	my @sources = ({ name => 'Remove Filter', url => $c->url_with->query([source => undef]) }, map { +{ name => $_, url => $c->url_with->query([source => $_])->to_string }  }
@@ -142,7 +280,7 @@ helper get_spell_sources => sub {
 	return { header => 'Filter by Source', collapsable => 'source', jumps => [], list => \@sources };
 };
 
-helper get_spell_descriptors => sub {
+helper list_spell_descriptors => sub {
 	my ($c) = @_;
 
 	my @descriptors = ({ name => 'Remove Filter', url => $c->url_with->query([descriptor => undef]) },
@@ -151,7 +289,7 @@ helper get_spell_descriptors => sub {
 	return { header => 'Filter by Descriptor', collapsable => 'descriptor', jumps => [], list => \@descriptors };
 };
 
-helper get_spell_schools => sub {
+helper list_spell_schools => sub {
 	my ($c) = @_;
 
 	my @schools = ({name => 'Remove Filter', url => $c->url_with->query([school => undef])},
