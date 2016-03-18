@@ -218,8 +218,5 @@ __DATA__
 @@ index.html.ep
 % layout 'base';
 % title 'Games';
-<div class="navigation"><ul>
-	<li><%= link_to Feats => '/feats' %>
-</ul></div>
 <h1>Games</h1>
 
