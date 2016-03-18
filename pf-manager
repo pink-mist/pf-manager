@@ -171,7 +171,7 @@ helper render_spell_desc => sub {
 	my @mythic;
 	def_push @mythic, def_join ' ', '<b>Mythic:</b>', $spell->{mythic_text};
 	push @mythic, sprintf('<b>%s:</b> %s', split /: ?/,  $spell->{augmented}, 2) if defined $spell->{augmented};
-	push @lines, join '<br>\n', @mythic if @mythic;
+	push @lines, join "<br>\n", @mythic if @mythic;
 
 	return indent 6, sprintf '<div class="spell"><div class="editlink"><a href="/edit/spell/%s">Edit</a></div>%s</div>',
 		$spell->{id}, join "\n", map { @{ Mojo::DOM->new($_)->child_nodes } != 1 ? "<p>$_</p>" : $_ } @lines;
