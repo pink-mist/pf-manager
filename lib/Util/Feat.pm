@@ -12,6 +12,17 @@ package Util::Feat {
 
 	has pg => sub { Mojo::Pg->new('postgresql:///pathfinder'); };
 
+	sub get_feats {
+		my ($self, @names) = @_;
+
+		my @feats;
+		foreach my $name (@names) {
+			push @feats, @{ $self->pg->db->query('SELECT * FROM feats WHERE name = ?;', $name)->hashes() };
+		}
+
+		return @feats;
+	}
+
 	sub get_desc {
 		my ($self, $name) = @_;
 
@@ -20,6 +31,18 @@ package Util::Feat {
 			push @feats, map { $self->_render_description($_) } @{ $self->pg->db->query('SELECT * FROM feats WHERE name = ?;', $feat)->hashes() };
 		}
 		return join '<p>', @feats;
+	}
+
+	sub get_types {
+		my ($self, $fid) = @_;
+
+		return @{ $self->pg->db->query('SELECT types FROM feats_with_types WHERE id = ?;', $fid)->hash()->{types} };
+	}
+
+	sub list_prereqs {
+		my ($self, $fid) = @_;
+
+		return grep defined, @{ $self->pg->db->query('SELECT feats FROM feats_with_feats WHERE id = ?;', $fid)->hashes()->[0]->{feats} };
 	}
 
 	sub _render_description {
@@ -50,6 +73,12 @@ package Util::Feat {
 		}
 
 		return sprintf '<div class="feat">%s</div>', join "\n",  map { @{ Mojo::DOM->new($_)->child_nodes } != 1 ? "<p>$_</p>" : $_ } @lines;
+	}
+
+	sub list_dependents {
+		my ($self, $fid) = @_;
+
+		return @{ $self->pg->db->query('SELECT name, types FROM feats_with_types, feats_rel_feats AS rel WHERE id = rel.feat AND rel.prerequisite_feat = ? ORDER BY name;', $fid)->hashes() };
 	}
 
 	sub _linkify_prereqs {

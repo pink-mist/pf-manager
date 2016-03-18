@@ -1,0 +1,9 @@
+% layout 'base';
+% title 'Spell: ' . stash 'spell';
+% my $id = stash 'id';
+% my $spell = foo();
+
+Editing <%= $id %>
+%= form_for "/edit/spell/$id" => (method => 'POST') => begin
+  %= text_field first_name => 
+%= end

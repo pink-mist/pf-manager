@@ -16,9 +16,21 @@ package Util::Spell {
 
 		my @spells;
 		foreach my $spell (split /\|/, $name) {
-			push @spells, map { $self->_render_description($_) } @{ $self->pg->db->query('SELECT * FROM spells WHERE name = ?;', $spell)->hashes() };
+			push @spells, map { $self->_render_description($_) } $self->get_spells($name);
 		}
 		return join '<p>', @spells;
+	}
+
+	sub get_spells {
+		my ($self, $name) = @_;
+
+		return @{ $self->pg->db->query('SELECT * FROM spells WHERE name = ?', $name)->hashes() };
+	}
+
+	sub get_classes {
+		my ($self, $sid) = @_;
+
+		return @{ $self->pg->db->query('SELECT * FROM spells_rel_class WHERE spell = ? ORDER BY class;', $sid)->hashes() };
 	}
 
 	sub _render_description {
@@ -55,7 +67,7 @@ package Util::Spell {
 		push @mythic, md $self->_parse(sprintf('<b>%s:</b> %s', split /: ?/,  $spell->{augmented}, 2)) if defined $spell->{augmented};
 		push @lines, join "<br>\n", @mythic if @mythic;
 
-		return sprintf '<div class="spell">%s</div>', join "\n", map { @{ Mojo::DOM->new($_)->child_nodes } != 1 ? "<p>$_</p>" : $_ } @lines;
+		return sprintf '<div class="spell"><div class="editlink"><a href="/edit/spell/%s">Edit</a></div>%s</div>', $spell->{id}, join "\n", map { @{ Mojo::DOM->new($_)->child_nodes } != 1 ? "<p>$_</p>" : $_ } @lines;
 	}
 
 	sub _parse {

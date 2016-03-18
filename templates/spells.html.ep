@@ -14,9 +14,9 @@
 	%= submit_button 'Search'
 	%= link_to 'Clear all filters' => '/spells'
 % end
-%== render_list(sub { shift->get_spell_schools(); });
-%== render_list(sub { shift->get_spell_classes(); });
-%== render_list(sub { shift->get_spell_descriptors(); });
-%== render_list(sub { shift->get_spell_sources(); });
+%== render_list(sub { shift->list_spell_schools(); });
+%== render_list(sub { shift->list_spell_classes(); });
+%== render_list(sub { shift->list_spell_descriptors(); });
+%== render_list(sub { shift->list_spell_sources(); });
 <h1>Spells</h1>
-%== render_list(sub { shift->get_spell_list($search, { class => $class, source => $source, descriptor => $descriptor, school => $school }); });
+%== render_list(sub { shift->list_spells($search, { class => $class, source => $source, descriptor => $descriptor, school => $school }); });

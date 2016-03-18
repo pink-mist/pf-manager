@@ -1,4 +1,4 @@
 % layout 'base';
 % title 'Feat: ' . stash 'feat';
 
-%== $self->get_feat(stash 'feat');
+%== $self->render_feat(stash 'feat');

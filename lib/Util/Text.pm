@@ -8,7 +8,7 @@ package Util::Text {
 
 	use Exporter qw/ import /;
 
-	our @EXPORT_OK = qw/ indent width in md /;
+	our @EXPORT_OK = qw/ indent width in md def_push def_join /;
 
 	sub indent {
 		my ($indent, $text) = @_;
@@ -46,6 +46,20 @@ package Util::Text {
 	sub md {
 		return () unless @_;
 		return Mojo::DOM->new(markdown( join('', @_) , { empty_element_suffix => '>', }))->child_nodes->first->content();
+	}
+
+	sub def_push (\@@) {
+		my $ref = shift;
+		foreach (@_) { return undef if not defined }
+
+		push @{ $ref }, @_;
+	}
+
+	sub def_join {
+		my $join = shift;
+		foreach (@_) { return undef if not defined }
+
+		join $join, @_;
 	}
 
 };
