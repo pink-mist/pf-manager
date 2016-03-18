@@ -89,8 +89,8 @@ package Util::Spell {
 		return qw/
 			acid air chaotic cold curse darkness death disease
 			earth electricity emotion evil fear fire force good
-			language_dependent lawful light mind_affecting pain
-			poison shadow sonic water
+			language_dependent lawful light mind_affecting
+			mythic pain poison shadow sonic water
 			/;
 	}
 
