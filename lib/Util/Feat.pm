@@ -6,8 +6,9 @@ package Util::Feat {
 	use List::UtilsBy qw/ nsort_by /;
 	use Mojo::Pg;
 	use Mojo::Util 'html_unescape';
+	use Mojo::DOM;
 	use Text::Fuzzy;
-	use Text::Markdown qw/ markdown /;
+	use Util::Text qw/ md /;
 
 	has pg => sub { Mojo::Pg->new('postgresql:///pathfinder'); };
 
@@ -32,12 +33,12 @@ package Util::Feat {
 		push @lines, sprintf "<h2>%s%s</h2>", $feat->{name}, @types ? sprintf(" (%s)", join ", ", @types) : '';
 		push @lines, $self->_parse($feat->{description});
 		push @lines, $self->_parse('<b>Prerequisites:</b> ', _linkify_prereqs($feat->{prerequisites}, \@prereqs, \@races, \@skills));
-		push @lines, $self->_parse('<b>Benefit:</b> ', $feat->{benefit});
-		push @lines, $self->_parse('<b>Normal:</b> ', $feat->{normal});
-		push @lines, $self->_parse('<b>Special:</b> ', $feat->{special});
-		push @lines, $self->_parse('<b>Goal:</b> ', $feat->{goal});
-		push @lines, $self->_parse('<b>Completion Benefit:</b> ', $feat->{completion_benefit});
-		push @lines, $self->_parse('<b>Note:</b> ', $feat->{note});
+		push @lines, md $self->_parse('<b>Benefit:</b> ', $feat->{benefit});
+		push @lines, md $self->_parse('<b>Normal:</b> ', $feat->{normal});
+		push @lines, md $self->_parse('<b>Special:</b> ', $feat->{special});
+		push @lines, md $self->_parse('<b>Goal:</b> ', $feat->{goal});
+		push @lines, md $self->_parse('<b>Completion Benefit:</b> ', $feat->{completion_benefit});
+		push @lines, md $self->_parse('<b>Note:</b> ', $feat->{note});
 		push @lines, $self->_parse('<b>Suggested Traits:</b> ', $feat->{suggested_traits});
 
 		my @dependent_feats = @{ $self->pg->db->query('SELECT * FROM feats_with_types, feats_rel_feats AS rel WHERE id = rel.feat AND rel.prerequisite_feat = ? ORDER BY name', $feat->{id})->hashes() };
@@ -48,7 +49,7 @@ package Util::Feat {
 				@dependent_feats;
 		}
 
-		return sprintf '<div class="feat">%s</div>', join "\n", @lines;
+		return sprintf '<div class="feat">%s</div>', join "\n",  map { @{ Mojo::DOM->new($_)->child_nodes } != 1 ? "<p>$_</p>" : $_ } @lines;
 	}
 
 	sub _linkify_prereqs {
@@ -84,7 +85,6 @@ package Util::Feat {
 
 		$text = join "", @_, $text;
 
-		$text = markdown($text, { empty_element_suffix => '>', });
 		return $text;
 	}
 

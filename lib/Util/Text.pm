@@ -3,9 +3,12 @@ package Util::Text {
 	use strict;
 	use warnings;
 
+	use Text::Markdown qw/ markdown /;
+	use Mojo::DOM;
+
 	use Exporter qw/ import /;
 
-	our @EXPORT_OK = qw/ indent width in /;
+	our @EXPORT_OK = qw/ indent width in md /;
 
 	sub indent {
 		my ($indent, $text) = @_;
@@ -39,6 +42,12 @@ package Util::Text {
 		foreach my $rest (@rest) { return 1 if $first eq $rest; }
 		return 0;
 	}
+
+	sub md {
+		return () unless @_;
+		return Mojo::DOM->new(markdown( join('', @_) , { empty_element_suffix => '>', }))->child_nodes->first->content();
+	}
+
 };
 
 'ok';

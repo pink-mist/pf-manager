@@ -7,8 +7,7 @@ package Util::Spell {
 	use Mojo::Pg;
 	use Mojo::Util 'html_unescape';
 	use Text::Fuzzy;
-	use Text::Markdown qw/ markdown /;
-	use Util::Text qw/ in /;
+	use Util::Text qw/ in md /;
 
 	has pg => sub { Mojo::Pg->new('postgresql:///pathfinder'); };
 
@@ -49,11 +48,11 @@ package Util::Spell {
 		push @casting, $self->_parse('<b>Patron:</b> ',$spell->{patron});
 		push @lines, join "<br>\n", @casting, '' if @casting;
 
-		push @lines, $self->_parse('<b>Description:</b> ',$spell->{description});
+		push @lines, md $self->_parse('<b>Description:</b> ',$spell->{description});
 
 		my @mythic;
-		push @mythic, $self->_parse('<b>Mythic:</b> ',$spell->{mythic_text});
-		push @mythic, $self->_parse(sprintf('<b>%s:</b> %s', split /: ?/,  $spell->{augmented}, 2)) if defined $spell->{augmented};
+		push @mythic, md $self->_parse('<b>Mythic:</b> ',$spell->{mythic_text});
+		push @mythic, md $self->_parse(sprintf('<b>%s:</b> %s', split /: ?/,  $spell->{augmented}, 2)) if defined $spell->{augmented};
 		push @lines, join "<br>\n", @mythic if @mythic;
 
 		return sprintf '<div class="spell">%s</div>', join "\n", map { @{ Mojo::DOM->new($_)->child_nodes } != 1 ? "<p>$_</p>" : $_ } @lines;
@@ -81,7 +80,6 @@ package Util::Spell {
 
 		$text = join "", @_, $text;
 
-		$text = Mojo::DOM->new(markdown($text, { empty_element_suffix => '>', }))->child_nodes->first->content();
 		return $text
 	}
 
