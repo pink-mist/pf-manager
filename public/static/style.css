@@ -38,6 +38,8 @@ input[type=checkbox]:checked + div.collapsable div.blocker {
 	color: inherit;
 }
 div.feat, div.spell { max-width: 50em; margin-left: auto; margin-right: auto; margin-top: 5em; }
+div.spell > div.editlink, div.feat > div.editlink { display: none; }
+div.spell:hover > div.editlink, div.feat:hover > div.editlink { display: block; float: right; }
 div.list {
 	column-gap: 2em; -webkit->column-gap: 2em; -moz-column-gap: 2em;
 	column-rule: 1px dashed lightgray; -webkit-column-rule: 1px dashed lightgray; -moz-column-rule: 1px dashed lightgray;
