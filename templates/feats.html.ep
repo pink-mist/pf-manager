@@ -12,4 +12,5 @@
 % end
 %== render_list(sub { shift->get_feat_types(); });
 %== render_list(sub { shift->get_feat_sources(); });
+<h1>Feats</h1>
 %== render_list(sub { shift->get_feat_list($search, { type => $type, source => $source }); });

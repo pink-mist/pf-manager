@@ -18,4 +18,5 @@
 %== render_list(sub { shift->get_spell_classes(); });
 %== render_list(sub { shift->get_spell_descriptors(); });
 %== render_list(sub { shift->get_spell_sources(); });
+<h1>Spells</h1>
 %== render_list(sub { shift->get_spell_list($search, { class => $class, source => $source, descriptor => $descriptor, school => $school }); });
