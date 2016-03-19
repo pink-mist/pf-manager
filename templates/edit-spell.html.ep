@@ -1,9 +1,62 @@
 % layout 'base';
 % title 'Spell: ' . stash 'spell';
 % my $id = stash 'id';
-% my $spell = foo();
+% my $spell = spell_db->get_spell($id);
+% my %classes = map { $_->{class}, $_->{level} } spell_db->get_classes($id);
 
-Editing <%= $id %>
+<div class="spell">
 %= form_for "/edit/spell/$id" => (method => 'POST') => begin
-  %= text_field first_name => 
+  % for my $label (qw/ source name school subschool /) {
+  %= label_for $label => "\u$label:";
+  %= text_field $label => $spell->{$label}, id => $label;
+  <br>
+  % }
+  <p>
+  <b>Descriptors</b><br>
+  % for my $label (sort { length $a <=> length $b } spell_db->descriptors) {
+    % my $text = $label =~ s/_/-/r;
+    <div style="display:inline-block;width:6em;white-space:nowrap;padding-right:2em;">
+    %= check_box $label => $spell->{$label}, id => $label;
+    %= label_for $label => "\u$text";
+    </div>
+  % }
+  <p>
+  <b>Levels</b><br>
+  % for my $label (qw/ adept alchemist antipaladin bard bloodrager cleric druid
+  %   inquisitor magus medium mesmerist occultist oracle paladin psychic ranger
+  %   shaman skald sorcerer spiritualist summoner witch wizard /) {
+  <span style="white-space:nowrap;">
+    %= label_for $label => "\u$label:";
+    %= text_field $label => $classes{$label}, id => $label, maxlength => 1;
+  </span>
+  % }
+  </p>
+  % for my $label (qw/casting_time components material_costs ranger area effect
+  %   targets duration saving_throw spell_resitance deity domain bloodline
+  %   patron/) {
+    % my $text = $label =~ s/_/ /r;
+    %= label_for $label => "\u$text:";
+    %= text_field $label => $spell->{$label}, id => $label;
+    <br>
+  % }
+  <p>
+  %= label_for description => 'Description:';
+  <br>
+  %= text_area description => id => 'description', begin
+%== $spell->{description};
+  %= end
+  </p>
+  <p>
+  %= label_for mythic_text => 'Mythic:';
+  <br>
+  %= text_area mythic_text => id => 'mythic_text', begin
+%== $spell->{mythic_text};
+  %= end
+  <br>
+  %= label_for augmented => 'Augmented:';
+  <br>
+  %= text_area augmented => id => 'augmented', begin
+%== $spell->{augmented};
+  %= end
 %= end
+</div>

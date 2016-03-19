@@ -27,6 +27,12 @@ package Util::Spell {
 		return @{ $self->pg->db->query('SELECT * FROM spells WHERE name = ?', $name)->hashes() };
 	}
 
+	sub get_spell {
+		my ($self, $sid) = @_;
+
+		return $self->pg->db->query('SELECT * FROM spells WHERE id = ?', $sid)->hashes()->[0];
+	}
+
 	sub get_classes {
 		my ($self, $sid) = @_;
 
