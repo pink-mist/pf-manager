@@ -35,6 +35,8 @@ get '/spells/*spell' => sub { shift->render(template => 'spell'); };
 any '/spells' => sub { shift->check_cache(spells => sub { shift->render_to_string(template => 'spells'); }); };
 get '/edit/spell/:id' => sub { shift->render(template => 'edit-spell'); };
 
+### Utility helpers
+
 helper check_cache => sub {
 	my ($c, $key, $cb) = @_;
 
@@ -49,10 +51,83 @@ helper check_cache => sub {
 	}
 
 	return $c->render(data => $cache);
-	
 };
 
-helper get_feat_list => sub {
+helper md => sub {
+	my ($c, $text) = @_;
+	return undef if not defined $text;
+
+	foreach my $phrase ($phrase_db->analyse($text)) {
+		my ($phr, $lnk) = @{ $phrase }{'phrase', 'link'};
+
+		my $dom = Mojo::DOM->new($text);
+		foreach my $node (@{ $dom->child_nodes }) {
+			next if $node->type ne 'text';
+
+			my $txt = html_unescape $node->to_string();
+			$txt =~ s!\b(\Q$phr\E)\b!<a href="$lnk">$1</a>!gi;
+			$node->replace($txt);
+		}
+		$text = html_unescape $dom->content();
+	}
+
+	return Mojo::DOM->new(markdown( $text , { empty_element_suffix => '>', }))->child_nodes->first->content();
+};
+
+helper render_list => sub {
+	my $c = shift;
+	my $cb = shift;
+
+	my $spec = $c->$cb(@_);
+
+	my $collapsable = $spec->{collapsable};
+	my $header = $spec->{header};
+	my @jumps = @{ $spec->{jumps} };
+	my $single_jump = @jumps == 1;
+	my $jump_html = '';
+	if (@jumps > 1) {
+		$jump_html .= '<a name="jump">Jump to</a>: ' . join " | ", map { sprintf '<a href="#%1$s">%1$s</a>', $_; } @jumps;
+	}
+
+	my @list = @{ $spec->{list} };
+	my $list_html = '';
+	foreach my $item (@list) {
+		if (exists $item->{jump}) {
+			next if $single_jump;
+			if (length $list_html) { $list_html .= '</ul>'; }
+			$list_html .= sprintf '<h3 class="jump"><a name="%1$s">%1$s</a></h3><a href="#jump" class="jump">^Top</a>', $item->{jump};
+			$list_html .= '<ul>';
+		} elsif (exists $item->{url}) {
+			if (not length $list_html) { $list_html .= '<ul>'; }
+			$list_html .= sprintf '<li><a href="%s">%s</a>%s', $item->{url}, $item->{name}, "\n";
+		} elsif (exists $item->{content}) {
+			$list_html .= $item->{content};
+		} else {
+			$list_html .= join "<br>\n", map { "$_ => " . $item->{$_} } sort keys %{ $item };
+		}
+	}
+	if (length $list_html) { $list_html .= '</ul>'; }
+
+	my $html = '';
+	if (length $jump_html) { $html .= sprintf '<div class="jump">%s</div>', $jump_html; }
+	if (length $list_html) { $html .= sprintf '<div class="list">%s</div>', $list_html; }
+	if ($collapsable)      { $html = sprintf '
+<input class="toggle" type="checkbox" id="toggle-%s">
+<div class="collapsable">
+  <div class="fader">
+    <div class="blocker">
+      <label for="toggle-%1$s" class="toggle">%s</label>
+    </div>
+  </div>
+  %s
+</div>', $collapsable, $header // 'Toggle', $html; }
+
+	return $html;
+};
+
+### Feat section
+
+helper list_feats => sub {
 	my ($c, $search, $filter) = @_;
 
 	my ($sorted, @results) = $feat_db->find($search, $filter);
@@ -73,6 +148,82 @@ helper get_feat_list => sub {
 
 	return {jumps => \@jumps, list => \@feats};
 };
+
+helper render_feat => sub {
+	my ($c, $name) = @_;
+
+	return join '<p>', map { $c->render_feat_desc($_) } $feat_db->get_feats(split /\|/, $name);
+};
+
+helper render_feat_desc => sub {
+	my ($c, $feat) = @_;
+
+	# Source
+	my @lines = sprintf '<p><i>Source: %s</i></p>', $feat->{source};
+
+	# Name
+	my @types = $feat_db->get_types($feat->{id});
+	my $types = @types ? sprintf(' (%s)', join ', ', @types) : '';
+	push @lines, sprintf '<h2>%s%s</h2>', $feat->{name}, $types;
+
+	# Description
+	push @lines, $feat->{description};
+
+	# Details
+	def_push @lines, def_join ' ', '<b>Prerequisites:</b>', $c->feat_prereq_linkify($feat);
+	def_push @lines, def_join ' ', '<b>Benefit:</b>', $c->md($feat->{benefit});
+	def_push @lines, def_join ' ', '<b>Normal:</b>', $c->md($feat->{normal});
+	def_push @lines, def_join ' ', '<b>Special:</b>', $c->md($feat->{special});
+	def_push @lines, def_join ' ', '<b>Goal:</b>', $c->md($feat->{goal});
+	def_push @lines, def_join ' ', '<b>Completion Benefit:</b>', $c->md($feat->{completion_benefit});
+	def_push @lines, def_join ' ', '<b>Note:</b>', $c->md($feat->{note});
+	def_push @lines, def_join ' ', '<b>Suggested Traits:</b>', $feat->{suggested_traits};
+
+	# Dependent feats
+	my @dependents = $feat_db->list_dependents($feat->{id});
+	if (@dependents) {
+		push @lines, sprintf '<div class="dependents list"><p><b>Feats depending on this:</b><ul>%s</ul></p></div>',
+			join "\n",
+			map { sprintf '<li><a href="/feats/%s">%1$s (%s)</a>', $_->{name}, join ", ", @{ $_->{types} } }
+			@dependents;
+	}
+
+	return sprintf '<div class="feat">%s</div>', join "\n",  map { @{ Mojo::DOM->new($_)->child_nodes } != 1 ? "<p>$_</p>" : $_ } @lines;
+};
+
+helper feat_prereq_linkify => sub {
+	my ($c, $feat) = @_;
+	return undef if not defined $feat->{prerequisites};
+
+	my @prereqs = $feat_db->list_prereqs($feat->{id});
+
+	my $prereqs = $feat->{prerequisites};
+	foreach my $prereq (@prereqs) {
+		$prereqs =~ s!(?:^|, | or )\K(\Q$prereq\E)!<a href="/feats/$prereq">$1</a>!ig;
+	}
+
+	return $prereqs;
+};
+
+helper list_feat_types => sub {
+	my ($c) = @_;
+
+	my @types = ({ name => 'Remove Filter', url => $c->url_with->query([type => undef]) }, map { +{ name => $_, url => $c->url_with->query([type => $_])->to_string } }
+		@{ $pg->db->query('SELECT name FROM feat_types ORDER BY name;')->hashes()->map(sub { $_->{name} }) });
+	return { header => 'Filter by Type', collapsable => 'type', jumps => [], list => \@types };
+};
+
+helper list_feat_sources => sub {
+	my ($c) = @_;
+
+	my @sources = ({ name => 'Remove Filter', url => $c->url_with->query([source => undef]) }, map { +{ name => $_, url => $c->url_with->query([source => $_])->to_string } }
+		@{ $pg->db->query('SELECT source FROM feats GROUP BY source ORDER BY source;')->hashes()->map(sub { $_->{source} }) });
+	return { header => 'Filter by Source', collapsable => 'source', jumps => [], list => \@sources };
+};
+
+### Spell section
+
+helper spell_db => sub { $spell_db };
 
 helper list_spells => sub {
 	my ($c, $search, $filter) = @_;
@@ -101,19 +252,6 @@ helper list_spells => sub {
 	} @results;
 
 	return {jumps => \@jumps, list => \@spells};
-};
-
-helper get_feat => sub {
-	my ($c, $feat) = @_;
-	my $desc = $feat_db->get_desc($feat);
-
-	return indent 6, $desc;
-};
-
-helper render_feat => sub {
-	my ($c, $name) = @_;
-
-	return join '<p>', map { $c->render_feat_desc($_) } $feat_db->get_feats(split /\|/, $name);
 };
 
 helper render_spell => sub {
@@ -177,93 +315,6 @@ helper render_spell_desc => sub {
 		$spell->{id}, join "\n", map { @{ Mojo::DOM->new($_)->child_nodes } != 1 ? "<p>$_</p>" : $_ } @lines;
 };
 
-helper render_feat_desc => sub {
-	my ($c, $feat) = @_;
-
-	# Source
-	my @lines = sprintf '<p><i>Source: %s</i></p>', $feat->{source};
-
-	# Name
-	my @types = $feat_db->get_types($feat->{id});
-	my $types = @types ? sprintf(' (%s)', join ', ', @types) : '';
-	push @lines, sprintf '<h2>%s%s</h2>', $feat->{name}, $types;
-
-	# Description
-	push @lines, $feat->{description};
-
-	# Details
-	def_push @lines, def_join ' ', '<b>Prerequisites:</b>', $c->feat_prereq_linkify($feat);
-	def_push @lines, def_join ' ', '<b>Benefit:</b>', $c->md($feat->{benefit});
-	def_push @lines, def_join ' ', '<b>Normal:</b>', $c->md($feat->{normal});
-	def_push @lines, def_join ' ', '<b>Special:</b>', $c->md($feat->{special});
-	def_push @lines, def_join ' ', '<b>Goal:</b>', $c->md($feat->{goal});
-	def_push @lines, def_join ' ', '<b>Completion Benefit:</b>', $c->md($feat->{completion_benefit});
-	def_push @lines, def_join ' ', '<b>Note:</b>', $c->md($feat->{note});
-	def_push @lines, def_join ' ', '<b>Suggested Traits:</b>', $feat->{suggested_traits};
-
-	# Dependent feats
-	my @dependents = $feat_db->list_dependents($feat->{id});
-	if (@dependents) {
-		push @lines, sprintf '<div class="dependents list"><p><b>Feats depending on this:</b><ul>%s</ul></p></div>',
-			join "\n",
-			map { sprintf '<li><a href="/feats/%s">%1$s (%s)</a>', $_->{name}, join ", ", @{ $_->{types} } }
-			@dependents;
-	}
-
-	return sprintf '<div class="feat">%s</div>', join "\n",  map { @{ Mojo::DOM->new($_)->child_nodes } != 1 ? "<p>$_</p>" : $_ } @lines;
-};
-
-helper md => sub {
-	my ($c, $text) = @_;
-	return undef if not defined $text;
-
-	foreach my $phrase ($phrase_db->analyse($text)) {
-		my ($phr, $lnk) = @{ $phrase }{'phrase', 'link'};
-
-		my $dom = Mojo::DOM->new($text);
-		foreach my $node (@{ $dom->child_nodes }) {
-			next if $node->type ne 'text';
-
-			my $txt = html_unescape $node->to_string();
-			$txt =~ s!\b(\Q$phr\E)\b!<a href="$lnk">$1</a>!gi;
-			$node->replace($txt);
-		}
-		$text = html_unescape $dom->content();
-	}
-
-	return Mojo::DOM->new(markdown( $text , { empty_element_suffix => '>', }))->child_nodes->first->content();
-};
-
-helper feat_prereq_linkify => sub {
-	my ($c, $feat) = @_;
-	return undef if not defined $feat->{prerequisites};
-
-	my @prereqs = $feat_db->list_prereqs($feat->{id});
-
-	my $prereqs = $feat->{prerequisites};
-	foreach my $prereq (@prereqs) {
-		$prereqs =~ s!(?:^|, | or )\K(\Q$prereq\E)!<a href="/feats/$prereq">$1</a>!ig;
-	}
-
-	return $prereqs;
-};
-
-helper get_feat_types => sub {
-	my ($c) = @_;
-
-	my @types = ({ name => 'Remove Filter', url => $c->url_with->query([type => undef]) }, map { +{ name => $_, url => $c->url_with->query([type => $_])->to_string } }
-		@{ $pg->db->query('SELECT name FROM feat_types ORDER BY name;')->hashes()->map(sub { $_->{name} }) });
-	return { header => 'Filter by Type', collapsable => 'type', jumps => [], list => \@types };
-};
-
-helper get_feat_sources => sub {
-	my ($c) = @_;
-	
-	my @sources = ({ name => 'Remove Filter', url => $c->url_with->query([source => undef]) }, map { +{ name => $_, url => $c->url_with->query([source => $_])->to_string } }
-		@{ $pg->db->query('SELECT source FROM feats GROUP BY source ORDER BY source;')->hashes()->map(sub { $_->{source} }) });
-	return { header => 'Filter by Source', collapsable => 'source', jumps => [], list => \@sources };
-};
-
 helper list_spell_classes => sub {
 	my ($c) = @_;
 
@@ -298,63 +349,5 @@ helper list_spell_schools => sub {
 	return { header => 'Filter by School', collapsable => 'school', jumps => [], list => \@schools };
 };
 
-helper render_list => sub {
-	my $c = shift;
-	my $cb = shift;
-
-	my $spec = $c->$cb(@_);
-
-	my $collapsable = $spec->{collapsable};
-	my $header = $spec->{header};
-	my @jumps = @{ $spec->{jumps} };
-	my $single_jump = @jumps == 1;
-	my $jump_html = '';
-	if (@jumps > 1) {
-		$jump_html .= '<a name="jump">Jump to</a>: ' . join " | ", map { sprintf '<a href="#%1$s">%1$s</a>', $_; } @jumps;
-	}
-
-	my @list = @{ $spec->{list} };
-	my $list_html = '';
-	foreach my $item (@list) {
-		if (exists $item->{jump}) {
-			next if $single_jump;
-			if (length $list_html) { $list_html .= '</ul>'; }
-			$list_html .= sprintf '<h3 class="jump"><a name="%1$s">%1$s</a></h3><a href="#jump" class="jump">^Top</a>', $item->{jump};
-			$list_html .= '<ul>';
-		} elsif (exists $item->{url}) {
-			if (not length $list_html) { $list_html .= '<ul>'; }
-			$list_html .= sprintf '<li><a href="%s">%s</a>%s', $item->{url}, $item->{name}, "\n";
-		} elsif (exists $item->{content}) {
-			$list_html .= $item->{content};
-		} else {
-			$list_html .= join "<br>\n", map { "$_ => " . $item->{$_} } sort keys %{ $item };
-		}
-	}
-	if (length $list_html) { $list_html .= '</ul>'; }
-
-	my $html = '';
-	if (length $jump_html) { $html .= sprintf '<div class="jump">%s</div>', $jump_html; }
-	if (length $list_html) { $html .= sprintf '<div class="list">%s</div>', $list_html; }
-	if ($collapsable)      { $html = sprintf '
-<input class="toggle" type="checkbox" id="toggle-%s">
-<div class="collapsable">
-  <div class="fader">
-    <div class="blocker">
-      <label for="toggle-%1$s" class="toggle">%s</label>
-    </div>
-  </div>
-  %s
-</div>', $collapsable, $header // 'Toggle', $html; }
-
-	return $html;
-};
-
 app->secrets(app->config->{secrets});
 app->start;
-__DATA__
-
-@@ index.html.ep
-% layout 'base';
-% title 'Games';
-<h1>Games</h1>
-
