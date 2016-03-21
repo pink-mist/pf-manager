@@ -10,7 +10,7 @@
 	%= submit_button 'Search'
 	%= link_to 'Clear all filters' => '/feats'
 % end
-%== render_list(sub { shift->get_feat_types(); });
-%== render_list(sub { shift->get_feat_sources(); });
+%== render_list(sub { shift->list_feat_types(); });
+%== render_list(sub { shift->list_feat_sources(); });
 <h1>Feats</h1>
-%== render_list(sub { shift->get_feat_list($search, { type => $type, source => $source }); });
+%== render_list(sub { shift->list_feats($search, { type => $type, source => $source }); });
