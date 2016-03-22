@@ -53,8 +53,8 @@ div.navigation ul li { display: inline; padding-left: 2em; }
 div.navigation {
 	border-bottom: 1px solid lightgray;
 	margin-bottom: 2em;
-	margin-left: -1em;
-	margin-right: -1em;
+	margin-left: -0.45em;
+	margin-right: -0.45em;
 	padding-bottom: 0.1em;
 }
 div.navigation ul { padding: 0 0 0 0; margin: 0 0 0 0; }
