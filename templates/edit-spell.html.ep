@@ -1,8 +1,8 @@
 % layout 'base';
-% title 'Spell: ' . stash 'spell';
 % my $id = stash 'id';
 % my $spell = spell_db->get_spell($id);
 % my %classes = map { $_->{class}, $_->{level} } spell_db->get_classes($id);
+% title 'Edit spell: ' . $spell->{name};
 
 <div class="spell">
 %= form_for "/edit/spell/$id" => (method => 'POST') => begin
