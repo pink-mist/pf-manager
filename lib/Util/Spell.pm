@@ -144,7 +144,8 @@ package Util::Spell {
 
 		my $fields = join ", ", @fields;
 		my $tables = join ", ", @tables;
-		my $wheres = sprintf "WHERE %s", join " AND ", @wheres if @wheres;
+		my $wheres = '';
+		$wheres = sprintf "WHERE %s", join " AND ", @wheres if @wheres;
 		my $query = sprintf 'SELECT %s FROM %s %s ORDER BY %s', $fields, $tables, $wheres, $order;
 
 		#warn sprintf qq'Query: "%s"\nBinds: %s\n', $query, join ", ", map { "'$_'" } @binds;
