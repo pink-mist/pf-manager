@@ -172,6 +172,16 @@ package Util::Spell {
 			}
 			@spells;
 	}
+
+	sub update {
+		my ($self, $id, $params) = @_;
+
+		my %updates = map { $_, $params->{$_} } grep { length($params->{$_} } keys %$params;
+
+		# Validate update parameters...
+		warn "Unimplemented.";
+
+	}
 };
 
 'ok';
