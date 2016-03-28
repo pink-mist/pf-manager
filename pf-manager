@@ -349,5 +349,14 @@ helper list_spell_schools => sub {
 	return { header => 'Filter by School', collapsable => 'school', jumps => [], list => \@schools };
 };
 
+helper update_spell => sub {
+	my $c = shift;
+	my $id = $c->param('id');
+
+	$spell_db->update($id, $c->req->body_params->to_hash);
+
+	return $c;
+};
+
 app->secrets(app->config->{secrets});
 app->start;
