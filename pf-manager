@@ -37,6 +37,16 @@ get '/edit/spell/:id' => sub { shift->render(template => 'edit-spell'); };
 
 ### Utility helpers
 
+helper redirect => sub {
+	my ($c, $table) = @_;
+	my $id = $c->param('id');
+
+	my $name = '';
+	if (defined $id) { $name = $pg->db->query("SELECT name FROM $table WHERE id = ?", $c->param('id'))->hashes()->first()->{name}; }
+
+	return $c->redirect_to("/$table/$name");
+};
+
 helper check_cache => sub {
 	my ($c, $key, $cb) = @_;
 
