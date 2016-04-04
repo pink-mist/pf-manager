@@ -176,11 +176,20 @@ package Util::Spell {
 	sub update {
 		my ($self, $id, $params) = @_;
 
-		my %updates = map { $_, $params->{$_} } grep { length($params->{$_} } keys %$params;
+		my %orig = %{ $self->pg->db->query('SELECT * FROM spells WHERE id = ?', $id)->hashes->first };
+		my %updates = map { $_, $params->{$_} }
+			grep { ! defined $orig{$_} or $orig{$_} ne $params->{$_} }
+			grep { exists $orig{$_} }
+			grep { length($params->{$_} } keys %$params;
 
 		# Validate update parameters...
 		warn "Unimplemented.";
 
+		return warn "Nothing to update.\n" unless %updates;
+
+		my $sql = sprintf 'UPDATE spells SET %s WHERE id = ?;', join ', ', ('? = ?') x values %updates;
+
+		warn sprintf "%s => %s\n", $sql, join ', ', %updates;
 	}
 };
 
