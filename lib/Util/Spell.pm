@@ -175,12 +175,14 @@ package Util::Spell {
 
 	sub update {
 		my ($self, $id, $params) = @_;
+		for my $val (values %$params) { $val = undef unless length $val; }
 
 		my %orig = %{ $self->pg->db->query('SELECT * FROM spells WHERE id = ?', $id)->hashes->first };
 		my %updates = map { $_, $params->{$_} }
-			grep { ! defined $orig{$_} or $orig{$_} ne $params->{$_} }
-			grep { exists $orig{$_} }
-			grep { length($params->{$_} } keys %$params;
+			grep { # if only one of them is defined, return 1, otherwise if they're defined check equality, otherwise 0
+			    defined($orig{$_}) xor defined($params->{$_}) ? 1 : defined($orig{$_}) ? $orig{$_} ne $params->{$_} : 0;
+			}
+			grep { exists $orig{$_} } keys %$params;
 
 		# Validate update parameters...
 		warn "Unimplemented.";
