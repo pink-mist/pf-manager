@@ -81,7 +81,12 @@ helper md => sub {
 		$text = html_unescape $dom->content();
 	}
 
-	return Mojo::DOM->new(markdown( $text , { empty_element_suffix => '>', }))->child_nodes->first->content();
+	my $md = markdown( $text , { empty_element_suffix => '>', });
+	my $dom = Mojo::DOM->new( $md );
+	my @nodes = grep { $_->content !~ /^\s+$/ } @{ $dom->child_nodes };
+
+	$nodes[0] = $nodes[0]->content;
+	return join '', @nodes;
 };
 
 helper render_list => sub {
@@ -322,7 +327,7 @@ helper render_spell_desc => sub {
 	push @lines, join "<br>\n", @mythic if @mythic;
 
 	return indent 6, sprintf '<div class="spell"><div class="editlink"><a href="/edit/spell/%s">Edit</a></div>%s</div>',
-		$spell->{id}, join "\n", map { @{ Mojo::DOM->new($_)->child_nodes } != 1 ? "<p>$_</p>" : $_ } @lines;
+		$spell->{id}, join "\n", map { @{ Mojo::DOM->new($_)->child_nodes } != 1 ? qq'<div class="block">$_</div>' : $_ } @lines;
 };
 
 helper list_spell_classes => sub {
