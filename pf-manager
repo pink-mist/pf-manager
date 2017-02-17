@@ -272,7 +272,7 @@ helper list_spells => sub {
 helper render_spell => sub {
 	my ($c, $name) = @_;
 
-	return join '<p>', map { $c->render_spell_desc($_) } $spell_db->get_spells($name);
+	return join '<p>', map { $c->render_spell_desc($_) } $spell_db->get_spells(split /\|/, $name);
 };
 
 helper render_spell_desc => sub {

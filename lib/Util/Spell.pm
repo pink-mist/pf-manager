@@ -22,9 +22,14 @@ package Util::Spell {
 	}
 
 	sub get_spells {
-		my ($self, $name) = @_;
+		my ($self, @names) = @_;
 
-		return @{ $self->pg->db->query('SELECT * FROM spells WHERE name = ?', $name)->hashes() };
+		my @spells;
+		foreach my $name (@names) {
+			push @spells, @{ $self->pg->db->query('SELECT * FROM spells WHERE name = ?;', $name)->hashes() };
+		}
+
+		return @spells;
 	}
 
 	sub get_spell {
